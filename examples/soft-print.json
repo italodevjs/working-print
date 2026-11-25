@@ -1,0 +1,12 @@
+{
+  "schema": "working-print",
+  "version": 1,
+  "adjustments": {
+    "exposure": 0.25,
+    "contrast": 8,
+    "warmth": 12,
+    "tint": 0,
+    "saturation": -8,
+    "curve": [0, 0.18, 0.5, 0.82, 1]
+  }
+}
