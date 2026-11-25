@@ -1,1 +1,15 @@
-{"name":"working-print","version":"1.0.0","private":true,"type":"module","description":"A local photographic workbench with reproducible recipes and a Python reference renderer.","scripts":{"dev":"node scripts/serve.mjs","test":"node --test","build":"node scripts/build.mjs"},"engines":{"node":">=22"}}
+{
+  "name": "working-print",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "A local photographic workbench with reproducible recipes and a Python reference renderer.",
+  "scripts": {
+    "dev": "node scripts/serve.mjs",
+    "test": "node --test",
+    "build": "node scripts/build.mjs"
+  },
+  "engines": {
+    "node": ">=22"
+  }
+}
