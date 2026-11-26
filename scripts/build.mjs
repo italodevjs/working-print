@@ -6,6 +6,8 @@ for (const file of [
   "app.mjs",
   "engine.mjs",
   "worker.mjs",
+  "image-loader.mjs",
+  "worker-client.mjs",
 ])
   await copyFile(file, `dist/${file}`);
 await cp("assets", "dist/assets", { recursive: true });

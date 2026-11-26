@@ -3,44 +3,22 @@ import {
   LIMITS,
   recipe,
   validateRecipe,
-  curveValue,
 } from "./engine.mjs";
+import { createImageLoader } from "./image-loader.mjs";
+import { PixelWorkerClient } from "./worker-client.mjs";
 const $ = (id) => document.getElementById(id);
 const cloneDefaults = () => ({ ...DEFAULTS, curve: [...DEFAULTS.curve] });
 let adjustments = cloneDefaults(),
   bitmap = null,
   preview = null,
   baseName = "earthrise",
-  generation = 0,
   previewGeneration = 0,
   mode = "split",
   busyExport = false;
-const worker = new Worker(new URL("./worker.mjs", import.meta.url), {
-    type: "module",
-  }),
-  requests = new Map();
-let nextId = 0;
-function run(pixels, a) {
-  return new Promise((resolve, reject) => {
-    const id = ++nextId;
-    requests.set(id, { resolve, reject });
-    worker.postMessage({ id, pixels, adjustments: a }, [pixels.buffer]);
-  });
-}
-worker.onmessage = ({ data }) => {
-  const request = requests.get(data.id);
-  if (!request) return;
-  requests.delete(data.id);
-  if (data.error) request.reject(new Error(data.error));
-  else request.resolve(data);
-};
-worker.onerror = () => {
-  for (const request of requests.values())
-    request.reject(
-      new Error("The image worker stopped. Reload the page to restart it."),
-    );
-  requests.clear();
-};
+const worker = new PixelWorkerClient(
+  new Worker(new URL("./worker.mjs", import.meta.url), { type: "module" }),
+);
+const run = (pixels, adjustments) => worker.run(pixels, adjustments);
 const status = (message) => ($("status").textContent = message);
 function showError(error) {
   $("error").textContent =
@@ -149,10 +127,10 @@ function drawHistogram(bins) {
     ctx = c.getContext("2d"),
     height = c.height;
   ctx.clearRect(0, 0, c.width, height);
-  const max = Math.max(1, ...bins);
+  const max = Math.log1p(Math.max(1, ...bins));
   ctx.fillStyle = "#737d63";
   bins.forEach((n, i) => {
-    const h = (n / max) * (height - 5);
+    const h = (Math.log1p(n) / max) * (height - 5);
     ctx.fillRect(i * 4, height - h, 3, h);
   });
 }
@@ -209,35 +187,23 @@ $("split").addEventListener("input", () => {
   $("split-line").style.left = `${$("split").value}%`;
   setMode(mode);
 });
-async function openImage(blob, name, isSample = false) {
-  const token = ++generation;
-  clearError();
-  $("loading").hidden = false;
-  $("export").disabled = true;
-  try {
-    if (blob.size > 20 * 1024 * 1024)
-      throw new Error("Choose a file smaller than 20 MB.");
-    if (!["image/jpeg", "image/png", "image/webp"].includes(blob.type))
-      throw new Error("Choose a JPEG, PNG or WebP photograph.");
-    const loaded = await createImageBitmap(blob, {
-      imageOrientation: "from-image",
-      colorSpaceConversion: "default",
-      premultiplyAlpha: "none",
-    });
-    if (
-      loaded.width * loaded.height > 12_000_000 ||
-      loaded.width > 16000 ||
-      loaded.height > 16000
-    ) {
-      loaded.close();
-      throw new Error(
-        "Choose an image of 12 megapixels or less (maximum edge 16,000 pixels).",
-      );
+const loadImage = createImageLoader({
+  decode: (blob) => createImageBitmap(blob, {
+    imageOrientation: "from-image",
+    colorSpaceConversion: "default",
+    premultiplyAlpha: "none",
+  }),
+  onLoading: (loading) => {
+    if (loading) {
+      clearError();
+      clearTimeout(debounce);
+      previewGeneration++;
     }
-    if (token !== generation) {
-      loaded.close();
-      return;
-    }
+    $("loading").hidden = !loading;
+    $("export").disabled = loading || !bitmap || busyExport;
+  },
+  onError: showError,
+  onLoad: async (loaded, blob, name, isSample) => {
     bitmap?.close();
     bitmap = loaded;
     baseName =
@@ -263,27 +229,16 @@ async function openImage(blob, name, isSample = false) {
       ? "Sample photograph: Earthrise, Apollo 8, 1968. Credit: NASA."
       : "Your photograph is held in memory on this device. Open another image or close the tab to release it.";
     await renderPreview();
-  } catch (e) {
-    if (token === generation) showError(e);
-  } finally {
-    if (token === generation) {
-      $("loading").hidden = true;
-      $("export").disabled = !bitmap || busyExport;
-    }
-  }
-}
-async function useSample() {
-  try {
+  },
+});
+const openImage = (blob, name) => loadImage(() => Promise.resolve(blob), name);
+function useSample() {
+  return loadImage(async () => {
     const response = await fetch("assets/earthrise.jpg");
     if (!response.ok)
-      throw new Error(
-        "The sample could not be loaded. Open a photograph from your device.",
-      );
-    await openImage(await response.blob(), "earthrise.jpg", true);
-  } catch (e) {
-    $("loading").hidden = true;
-    showError(e);
-  }
+      throw new Error("The sample could not be loaded. Open a photograph from your device.");
+    return response.blob();
+  }, "earthrise.jpg", true);
 }
 $("open").onclick = () => $("image-input").click();
 $("sample").onclick = useSample;

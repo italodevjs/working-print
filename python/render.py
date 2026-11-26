@@ -5,7 +5,8 @@ import argparse
 import json
 from pathlib import Path
 import numpy as np
-from PIL import Image, ImageOps
+from PIL import Image, ImageCms, ImageOps
+import io
 
 DEFAULTS = dict(
     exposure=0,
@@ -90,6 +91,24 @@ def render_rgba(pixels: np.ndarray, adjustments: dict) -> np.ndarray:
     return output
 
 
+def normalize_image(source: Image.Image) -> Image.Image:
+    """Normalize orientation and color while retaining source-profile channels."""
+    oriented = ImageOps.exif_transpose(source)
+    if not source.info.get("icc_profile"):
+        return oriented.convert("RGBA")
+    profile = ImageCms.ImageCmsProfile(io.BytesIO(source.info["icc_profile"]))
+    # CMYK data must reach a CMYK profile unchanged. Converting to RGB first
+    # would make the profile describe the wrong channel representation.
+    cms_input = oriented if oriented.mode in ("RGB", "CMYK", "L", "LAB") else oriented.convert("RGB")
+    rgb = ImageCms.profileToProfile(
+        cms_input, profile, ImageCms.createProfile("sRGB"), outputMode="RGB"
+    )
+    image = rgb.convert("RGBA")
+    if "A" in oriented.getbands():
+        image.putalpha(oriented.getchannel("A"))
+    return image
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("input", type=Path)
@@ -115,31 +134,13 @@ def main() -> None:
                 raise ValueError("Choose JPEG, PNG or WebP.")
             if source.width * source.height > 12_000_000 or max(source.size) > 16000:
                 raise ValueError("Image exceeds 12 MP or a 16,000-pixel edge.")
-            # Normalize an embedded source profile before the shared pixel math.
-            if source.info.get("icc_profile"):
-                from PIL import ImageCms
-                import io
-
-                profile = ImageCms.ImageCmsProfile(
-                    io.BytesIO(source.info["icc_profile"])
-                )
-                rgb = ImageCms.profileToProfile(
-                    ImageOps.exif_transpose(source).convert("RGB"),
-                    profile,
-                    ImageCms.createProfile("sRGB"),
-                    outputMode="RGB",
-                )
-                image = rgb.convert("RGBA")
-                alpha = ImageOps.exif_transpose(source).convert("RGBA").getchannel("A")
-                image.putalpha(alpha)
-            else:
-                image = ImageOps.exif_transpose(source).convert("RGBA")
+            image = normalize_image(source)
             output = render_rgba(np.asarray(image), a)
             # New image deliberately does not inherit EXIF, GPS, comments or device tags.
             with args.output.open("xb") as destination:
                 Image.fromarray(output).save(destination, format="PNG")
         print(f"Rendered {output.shape[1]} × {output.shape[0]} pixels to {args.output}")
-    except (ValueError, OSError, json.JSONDecodeError) as exc:
+    except (ValueError, OSError, json.JSONDecodeError, ImageCms.PyCMSError) as exc:
         parser.error(str(exc))
 
 
