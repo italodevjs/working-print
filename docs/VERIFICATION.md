@@ -22,8 +22,6 @@ Real screenshots were inspected for typography, alignment, hierarchy, control de
 
 [Desktop capture](screenshots/desktop.png) · [Mobile capture](screenshots/mobile.png)
 
-## Limits
-
 ## Public deployment
 
 The application is published at https://italodevjs.github.io/working-print/ through GitHub Pages. The same Chromium flows were repeated successfully against that public origin on 2026-11-26, including real downloads and responsive captures. GitHub Actions builds and tests before publishing; no paid backend is involved.
