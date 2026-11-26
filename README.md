@@ -1,5 +1,7 @@
 # Working Print
 
+[Open the public demonstration](https://italodevjs.github.io/working-print/) · [Verification record](docs/VERIFICATION.md)
+
 A photographic workbench for adjusting light and colour, comparing the result, and keeping the process as a recipe. It works entirely in your browser. No account, upload service or paid infrastructure is required.
 
 ![Working Print with the credited NASA Earthrise photograph](docs/screenshots/desktop.png)
