@@ -2,6 +2,8 @@
 
 A photographic workbench for adjusting light and colour, comparing the result, and keeping the process as a recipe. It works entirely in your browser. No account, upload service or paid infrastructure is required.
 
+![Working Print with the credited NASA Earthrise photograph](docs/screenshots/desktop.png)
+
 Open a JPEG, PNG or WebP; adjust exposure, contrast, warmth, tint, saturation and a monotonic tone curve; compare the original with a sliding split; export a new PNG or JPEG. Save a versioned JSON recipe and apply it to another photograph. A separate Python renderer implements the same pixel equations for reproducible, scriptable PNG output.
 
 ## Run
@@ -48,6 +50,7 @@ python -m pytest -q
 To include the cross-language parity test, set `WORKING_PRINT_PYTHON` to your Python executable before running `npm test`. Without it, that test is explicitly skipped. CI sets it and runs both suites.
 
 The tests cover identity, linear exposure, desaturation, monotonic curves, transparent pixels, strict recipe rejection, deterministic bounds and JavaScript/Python pixel parity. Browser interaction and screenshots are a separate acceptance gate; passing numerical tests alone does not prove the interface works.
+The [verification record](docs/VERIFICATION.md) documents actual browser flows and screenshots. The preview histogram uses logarithmic bin counts so a large dark background does not hide the remaining tonal distribution.
 
 ## Technical notes
 
