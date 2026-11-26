@@ -664,6 +664,12 @@ button.busy {
     max-width: 220px;
   }
 }
+@media (max-width: 480px) {
+  .controls { grid-template-columns: 1fr; }
+  .curve { margin-top: 1.5rem; }
+  .curve-heading { flex-wrap: wrap; gap: .6rem; }
+  .curve-heading p { font-size: 14px; }
+}
 @media (prefers-reduced-motion: reduce) {
   * {
     scroll-behavior: auto !important;
